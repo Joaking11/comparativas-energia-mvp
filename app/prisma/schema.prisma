@@ -1,0 +1,414 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/comparativas_energia_mvp/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model accounts {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  users             users   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model clientes {
+  id             String         @id
+  razonSocial    String
+  cif            String?
+  direccion      String?
+  localidad      String?
+  provincia      String?
+  codigoPostal   String?
+  nombreFirmante String?
+  nifFirmante    String?
+  telefono       String?
+  email          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  comparativas   comparativas[]
+}
+
+model comercializadoras {
+  id         String       @id
+  nombre     String       @unique
+  activa     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime
+  color      String?      @default("#3B82F6")
+  logoUrl    String?
+  comisiones comisiones[]
+  tarifas    tarifas[]
+  comisiones_comercializadora comisiones_comercializadora[]
+  comisiones_oferta comisiones_oferta[]
+}
+
+model comisiones {
+  id                    String            @id
+  comercializadoraId    String
+  nombreOferta          String
+  energiaVerde          Boolean           @default(false)
+  tarifa                String
+  zona                  String?
+  tipoOferta            String
+  rango                 String
+  rangoDesde            Float
+  rangoHasta            Float?
+  tieneFee              Boolean           @default(false)
+  porcentajeFeeEnergia  Float?
+  porcentajeFeePotencia Float?
+  comision              Float
+  activa                Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime
+  comercializadoras     comercializadoras @relation(fields: [comercializadoraId], references: [id], onDelete: Cascade)
+}
+
+model comparativa_ofertas {
+  id               String       @id
+  comparativaId    String
+  tarifaId         String
+  importeCalculado Float
+  ahorroAnual      Float
+  comisionGanada   Float
+  createdAt        DateTime     @default(now())
+  comparativas     comparativas @relation(fields: [comparativaId], references: [id], onDelete: Cascade)
+  tarifas          tarifas      @relation(fields: [tarifaId], references: [id], onDelete: Cascade)
+
+  @@unique([comparativaId, tarifaId])
+}
+
+model comparativas {
+  id                           String                @id
+  clienteId                    String
+  titulo                       String?
+  fechaOferta                  DateTime              @default(now())
+  fechaInicialFactura          DateTime?
+  fechaFinalFactura            DateTime?
+  diasPeriodoFactura           Int                   @default(30)
+  contrataElectricidad         Boolean               @default(true)
+  multipuntoElectricidad       Boolean               @default(false)
+  tarifaAccesoElectricidad     String
+  cupsElectricidad             String?
+  consumoAnualElectricidad     Float
+  duracionContratoElectricidad Int                   @default(12)
+  comercializadoraActual       String
+  ahorroMinimo                 Float                 @default(0.1)
+  distribuidoraElectrica       String?
+  historicoTieneGrafico        Boolean?              @default(false)
+  historicoMesesDetectados     Int?
+  historicoConsumosMensuales   String?
+  historicoPeriodoAnalizado    String?
+  historicoConsumoCalculado    Float?
+  contrataGas                  Boolean               @default(false)
+  multipuntoGas                Boolean               @default(false)
+  tarifaAccesoGas              String?
+  cupsGas                      String?
+  consumoAnualGas              Float?
+  duracionContratoGas          Int?
+  feeEnergia                   Float                 @default(0.0)
+  feeEnergiaMinimo             Float?
+  feeEnergiaMaximo             Float?
+  feePotencia                  Float                 @default(0.0)
+  feePotenciaMinimo            Float?
+  feePotenciaMaximo            Float?
+  energiaFijo                  Boolean               @default(false)
+  potenciaFijo                 Boolean               @default(false)
+  potenciaP1                   Float
+  potenciaP2                   Float?
+  potenciaP3                   Float?
+  potenciaP4                   Float?
+  potenciaP5                   Float?
+  potenciaP6                   Float?
+  consumoP1                    Float
+  consumoP2                    Float?
+  consumoP3                    Float?
+  consumoP4                    Float?
+  consumoP5                    Float?
+  consumoP6                    Float?
+  terminoFijoElectricidad      Float
+  terminoVariableElectricidad  Float
+  excesoPotencia               Float                 @default(0.0)
+  compensacionExcedentes       Float                 @default(0.0)
+  alquilerEquipos              Float                 @default(0.0)
+  impuestoElectricidad         Float
+  ivaElectricidad              Float
+  totalFacturaElectricidad     Float
+  terminoFijoGas               Float?
+  terminoVariableGas           Float?
+  impuestoGas                  Float?
+  ivaGas                       Float?
+  totalFacturaGas              Float?
+  notas                        String?
+  // Nuevos campos para gestión de agentes
+  agenteId                     String?
+  nombreAgente                 String?
+  mostrarComisiones            Boolean               @default(true)
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime
+  comparativa_ofertas          comparativa_ofertas[]
+  clientes                     clientes              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  venta                        ventas?
+  // Relación con datos de consumo obtenidos por scraping
+  datos_consumo_scraping       datos_consumo_scraping[]
+}
+
+// Nueva tabla para credenciales de portales web (distribuidoras)
+model credenciales_distribuidoras {
+  id                String   @id @default(cuid())
+  distribuidora     String   // Nombre de la distribuidora (Iberdrola, Endesa, etc.)
+  usuario           String   // Usuario para el portal
+  password_encrypted String  // Contraseña encriptada
+  url_portal        String   // URL del portal web
+  activa            Boolean  @default(true)
+  ultima_conexion   DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  // Datos obtenidos mediante scraping
+  datos_consumo_scraping datos_consumo_scraping[]
+}
+
+// Nueva tabla para almacenar datos de consumo obtenidos por scraping
+model datos_consumo_scraping {
+  id                String   @id @default(cuid())
+  comparativaId     String?
+  credencialId      String
+  cups              String
+  distribuidora     String
+  // Datos de consumo por periodos
+  consumoP1         Float?
+  consumoP2         Float?
+  consumoP3         Float?
+  consumoP4         Float?
+  consumoP5         Float?
+  consumoP6         Float?
+  consumoTotal      Float
+  // Datos de potencia (maxímetros)
+  potenciaP1        Float?
+  potenciaP2        Float?
+  potenciaP3        Float?
+  potenciaP4        Float?
+  potenciaP5        Float?
+  potenciaP6        Float?
+  potenciaMaxima    Float?
+  // Metadatos del scraping
+  fecha_obtencion   DateTime @default(now())
+  periodo_analizado String?  // Ej: "Enero 2025 - Diciembre 2025"
+  tipo_dato         String   // "historico" | "tiempo_real" | "maximetros"
+  estado_scraping   String   // "exitoso" | "error" | "pendiente"
+  mensaje_error     String?
+  datos_raw         String?  // JSON con datos completos obtenidos
+  // Relaciones
+  comparativas      comparativas? @relation(fields: [comparativaId], references: [id], onDelete: SetNull)
+  credencial        credenciales_distribuidoras @relation(fields: [credencialId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model sessions {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  users        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model tarifas {
+  id                  String                @id
+  comercializadoraId  String
+  nombreOferta        String
+  energiaVerde        Boolean               @default(false)
+  tarifa              String
+  zona                String
+  tipoOferta          String
+  rango               String
+  rangoDesde          Float
+  rangoHasta          Float?
+  tieneFee            Boolean               @default(false)
+  energiaP1           Float
+  energiaP2           Float?
+  energiaP3           Float?
+  energiaP4           Float?
+  energiaP5           Float?
+  energiaP6           Float?
+  energiaDescuento    Float?
+  potenciaP1          Float?
+  potenciaP2          Float?
+  potenciaP3          Float?
+  potenciaP4          Float?
+  potenciaP5          Float?
+  potenciaP6          Float?
+  potenciaDescuento   Float?
+  feeEnergia          Float?
+  feeEnergiaMinimo    Float?
+  feeEnergiaMaximo    Float?
+  feePotencia         Float?
+  feePotenciaMinimo   Float?
+  feePotenciaMaximo   Float?
+  validaHasta         DateTime?
+  tipoCliente         String?
+  costeGestion        Float                 @default(0)
+  costeTotal          Float                 @default(0)
+  activa              Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  comparativa_ofertas comparativa_ofertas[]
+  comercializadoras   comercializadoras     @relation(fields: [comercializadoraId], references: [id], onDelete: Cascade)
+  ventas              ventas[]
+}
+
+model users {
+  id                  String              @id
+  name                String?
+  email               String              @unique
+  emailVerified       DateTime?
+  image               String?
+  password            String?
+  username            String?             @unique
+  tipoUsuario         String              @default("regular") // regular, agente_con_login, agente_sin_login, admin
+  perfilComisionId    String?
+  activo              Boolean             @default(true)
+  telefono            String?
+  observaciones       String?
+  fechaAlta           DateTime            @default(now())
+  ultimoAcceso        DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt @default(now())
+  accounts            accounts[]
+  sessions            sessions[]
+  perfilComision      perfiles_comision?  @relation(fields: [perfilComisionId], references: [id])
+  ventas              ventas[]
+  comision_ventas     comision_ventas[]
+}
+
+model perfiles_comision {
+  id                      String                   @id @default(uuid())
+  nombre                  String                   @unique
+  descripcion             String?
+  porcentajeTotal         Float                    // Porcentaje base para todas las ventas
+  activo                  Boolean                  @default(true)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  usuarios                users[]
+  comisiones_comercializadora comisiones_comercializadora[]
+  comisiones_tarifa       comisiones_tarifa[]
+  comisiones_oferta       comisiones_oferta[]
+}
+
+model comision_principal {
+  id              String    @id @default(uuid())
+  porcentajeBase  Float     // Porcentaje principal del sistema
+  activo          Boolean   @default(true)
+  fechaActivacion DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Comisiones específicas por comercializadora para cada perfil
+model comisiones_comercializadora {
+  id                    String             @id @default(uuid())
+  perfilComisionId      String
+  comercializadoraId    String
+  porcentaje            Float              // Porcentaje específico para esta comercializadora
+  activo                Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  perfilComision        perfiles_comision  @relation(fields: [perfilComisionId], references: [id], onDelete: Cascade)
+  comercializadora      comercializadoras  @relation(fields: [comercializadoraId], references: [id], onDelete: Cascade)
+
+  @@unique([perfilComisionId, comercializadoraId])
+}
+
+// Comisiones específicas por tarifa de acceso para cada perfil
+model comisiones_tarifa {
+  id                String             @id @default(uuid())
+  perfilComisionId  String
+  tarifaAcceso      String             // 2.0TD, 3.0TD, 6.1TD, etc
+  porcentaje        Float              // Porcentaje específico para esta tarifa
+  activo            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  perfilComision    perfiles_comision  @relation(fields: [perfilComisionId], references: [id], onDelete: Cascade)
+
+  @@unique([perfilComisionId, tarifaAcceso])
+}
+
+// Comisiones específicas por oferta individual para cada perfil
+model comisiones_oferta {
+  id                  String             @id @default(uuid())
+  perfilComisionId    String
+  comercializadoraId  String
+  nombreOferta        String
+  tarifaAcceso        String?            // Opcional, si no se especifica aplica a todas las tarifas de esa oferta
+  porcentaje          Float              // Porcentaje específico para esta oferta
+  activo              Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  perfilComision      perfiles_comision  @relation(fields: [perfilComisionId], references: [id], onDelete: Cascade)
+  comercializadora    comercializadoras  @relation(fields: [comercializadoraId], references: [id], onDelete: Cascade)
+
+  @@unique([perfilComisionId, comercializadoraId, nombreOferta, tarifaAcceso])
+}
+
+// Registro de ventas para seguimiento de comisiones
+model ventas {
+  id                    String            @id @default(uuid())
+  comparativaId         String            @unique
+  usuarioId             String            // Usuario/agente que realizó la venta
+  clienteId             String
+  tarifaSeleccionadaId  String
+  importeAnual          Float             // Importe anual de la tarifa seleccionada
+  comisionCalculada     Float             // Comisión calculada para esta venta
+  porcentajeAplicado    Float             // Porcentaje aplicado para el cálculo
+  tipoComision          String            // 'total', 'comercializadora', 'tarifa', 'oferta'
+  fechaVenta            DateTime          @default(now())
+  estadoVenta           String            @default("pendiente") // pendiente, confirmada, cancelada
+  observaciones         String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  usuario               users             @relation(fields: [usuarioId], references: [id])
+  comparativa           comparativas      @relation(fields: [comparativaId], references: [id], onDelete: Cascade)
+  tarifaSeleccionada    tarifas           @relation(fields: [tarifaSeleccionadaId], references: [id])
+  comisiones_detalle    comision_ventas[]
+}
+
+// Detalle de comisiones por venta (para múltiples usuarios si es necesario)
+model comision_ventas {
+  id              String   @id @default(uuid())
+  ventaId         String
+  usuarioId       String
+  importeComision Float    // Importe de la comisión para este usuario
+  porcentaje      Float    // Porcentaje aplicado
+  fechaPago       DateTime?
+  estadoPago      String   @default("pendiente") // pendiente, pagado, cancelado
+  observaciones   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  venta           ventas   @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  usuario         users    @relation(fields: [usuarioId], references: [id])
+
+  @@unique([ventaId, usuarioId])
+}
+
+model verification_tokens {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
